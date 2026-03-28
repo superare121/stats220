@@ -28,7 +28,6 @@ plot_data <- latest_data %>%
   ) %>%
   
   arrange(brand, regular_price) %>%
-  # Create a factor for location in this sorted order
   mutate(location = factor(location, levels = unique(location)))
 
 regular_plot <- plot_data %>%
