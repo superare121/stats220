@@ -1,0 +1,90 @@
+---
+title: My dynamic report
+output: html_fragment
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo=FALSE, message=FALSE, warning=FALSE, error=FALSE)
+library(tidyverse)
+
+logged_data <- read_csv("https://docs.google.com/spreadsheets/d/e/2PACX-1vRnLtHqO5BX4hjp1HaIgG-jPXJZAq5cWFdVhEwrzYG6BSAUHDD_9q_WMXPjtN1iS6cSkCf7r5rE9rY7/pub?output=csv")
+
+latest_data <- logged_data %>%
+  rename(
+    date ="What is the date of your observation?",
+    store = "Which supermarket did you visit?",
+    location = "Which location did you visit?",
+    regular_price = "What was the regular price of 500mL can of Monster Energy on the day of your visit?",
+    discount = "Was there a discount on 500mL can of Monster Energy?",
+    discount_price = "What was the discounted price of 500mL can of Monster Energy on the day of your visit?"
+  )
+
+plot_data <- latest_data %>%
+  mutate(
+    brand = case_when(
+      str_detect(store, "PAK'nSAVE") ~ "PAK'nSAVE",
+      str_detect(store, "Woolworths") ~ "Woolworths"
+    )
+  ) %>%
+  
+  arrange(brand, regular_price) %>%
+  # Create a factor for location in this sorted order
+  mutate(location = factor(location, levels = unique(location)))
+
+regular_plot <- plot_data %>%
+  select(location, store, brand, regular_price) %>%
+  rename(price = regular_price)
+
+discount_plot <- plot_data %>%
+  select(location, store, brand, discount_price) %>%
+  rename(price = discount_price)
+
+# Regular price bar chart
+
+```
+
+```{css}
+
+```
+
+```{r}
+ggplot(regular_plot, aes(x = location, y = price, fill = store)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(
+    title = "Regular Prices by Location",
+    x = "Location",
+    y = "Price ($)",
+    fill = "Store"
+  ) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+# Discount price bar chart
+ggplot(discount_plot, aes(x = location, y = price, fill = store)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(
+    title = "Discount Prices by Location",
+    x = "Location",
+    y = "Price ($)",
+    fill = "Store"
+  ) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+```
+
+## What's going on with this data?
+I have generated 2 bar charts that compares the prices between different supermarkets, where the locations are separated on the x axis and the brand is shown through the colour of the bar. From these bar charts we can see that Woolworths tend to share the same pricing among each of its stores regardless of the location even when they do discounts. PAK'nSAVE on the other hand seems like each location set their own prices. Interestingly though the discount prices tend to be the same at \$2.50, except for Westgate at \$2.75 (We couldn't get the discounted price for Mt Albert since their Monster weren't discounted). 
+
+On average the regular price of a single Monster can is \$`r mean(plot_data$regular_price, na.rm = TRUE)`, which was cheaper than the average regular price in any Woolworths which is \$`r plot_data %>%
+  filter(str_detect(store, "Woolworths")) %>%
+  pull(regular_price) %>%
+  mean(na.rm = TRUE)`.
+This means I have no business buying Monster at Woolworths when they don't do discounts. Hell, the regular price at PAK'nSAVE Mt Albert is \$2.99 which is already cheaper than the discount price at Woolworths, \$`r plot_data %>%
+  filter(str_detect(store, "Woolworths")) %>%
+  pull(discount_price) %>%
+  mean(na.rm = TRUE)`(though only by 1 cent), so Woolworths really isn't worth it. I'd rather walk in to a random PAK'nSAVE in hopes of getting a can for \$`r plot_data %>%
+  filter(str_detect(store, "PAK'nSAVE")) %>%
+  pull(discount_price) %>%
+  median(na.rm = TRUE)`which is the median discount price at PAK'nSAVE.
+
